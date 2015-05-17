@@ -1,0 +1,58 @@
+# load the data
+unzip(zipfile="activity.zip")
+activity <- read.csv("activity.csv", sep = ",", header = TRUE)
+
+# transform the data into a format suitable for analysis
+activity$date <- as.Date(activity$date,,"%Y-%m-%d")
+
+# calculate the total number of steps taken per day
+daily.steps <- aggregate(steps ~ date,data = activity,FUN = sum,na.rm = TRUE)
+
+# make a histogram of the total number of steps taken each day
+hist(daily.steps$steps,main = "Total number of steps taken per day",xlab = "day",col = "green",breaks = 20)
+
+# calculate and report the mean and median of the total number of steps taken per day
+mean(daily.steps$steps)
+median(daily.steps$steps)
+
+# make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken(y-axis)
+interval.steps <- aggregate(steps ~ interval,data = activity,FUN = mean,na.rm = TRUE)
+plot(interval.steps, type = "l")
+
+# which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+interval.steps$interval[which.max(interval.steps$steps)]
+
+# calculate and report the total number of missing values in the dataset
+missing <- sum(is.na(activity))
+
+# devise a strategy for filling in all of the missing values in the dataset
+fill.steps <- function(steps, interval) {
+    filled <- NA
+    if (!is.na(steps))
+        filled <- c(steps)
+    else
+        filled <- (interval.steps[interval.steps$interval==interval, "steps"])
+    return(filled)
+}
+
+# create a new dataset that is equal to the original dataset but with the missing data filled in
+fill.activity <- activity
+fill.activity$steps <- mapply(fill.steps,fill.activity$steps,fill.activity$interval)
+
+# make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day
+fill.dailysteps <- aggregate(steps ~ date,data = fill.activity,FUN = sum,na.rm = TRUE)
+hist(fill.dailysteps$steps, main = "Total number of steps taken per day", xlab = "day", col = "green", breaks = 20)
+mean(fill.dailysteps$steps)
+median(fill.dailysteps$steps)
+
+# create a new factor variable in the dataset with two levels
+fill.activity["date"] <- as.Date(fill.activity$date, "%Y-%m-%d")
+fill.activity[(weekdays(fill.activity$date) %in% c("Saturday", "Sunday")), "level"] <- "Weekend"
+fill.activity[!(weekdays(fill.activity$date) %in% c("Saturday", "Sunday")), "level"] <- "Weekday"
+new.dailysteps <- aggregate(steps ~ interval + level, data = fill.activity, mean)
+names(new.dailysteps) <- c("interval", "level", "steps")
+
+# make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken (y-axis)
+library(lattice)
+p <- xyplot(steps ~ interval | factor(level),data = new.dailysteps,type = 'l',layout = c(1, 2),xlab = "Interval",ylab = "Average Steps Taken")
+print(p)
